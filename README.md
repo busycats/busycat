@@ -1,1 +1,1 @@
-This is a simple example package
+自用的python库，包含了一些常用的函数和类，方便自己的开发。
