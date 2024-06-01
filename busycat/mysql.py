@@ -52,27 +52,35 @@ class MySQLConnect:
     def execute(self, sql: str, params: Union[Tuple, List[Tuple]] = None) -> Union[
         List[Dict[str, Any]], Dict[str, Any], bool]:
         self.ensure_connection()
-        try:
-            with self.db.cursor() as cursor:
-                if params:
-                    if isinstance(params, list):
-                        cursor.executemany(sql, params)
+        retries = 0
+        while retries < self.max_retries:
+            try:
+                with self.db.cursor() as cursor:
+                    if params:
+                        if isinstance(params, list):
+                            cursor.executemany(sql, params)
+                        else:
+                            cursor.execute(sql, params)
                     else:
-                        cursor.execute(sql, params)
-                else:
-                    cursor.execute(sql)
+                        cursor.execute(sql)
 
-                if sql.strip().lower().startswith("select"):
-                    results = cursor.fetchall()
-                    description = cursor.description
-                    return json.loads(self.trans_to_json(description, results))
+                    if sql.strip().lower().startswith("select"):
+                        results = cursor.fetchall()
+                        description = cursor.description
+                        return json.loads(self.trans_to_json(description, results))
+                    else:
+                        self.db.commit()
+                        return True
+            except pymysql.MySQLError as e:
+                print(f"SQL execution error: {e}")
+                if e.args[0] in (2006, 2013, 2014, 2018, 2027):  # Lost connection or server gone away
+                    print("Attempting to reconnect...")
+                    self.connect()
+                    retries += 1
                 else:
-                    self.db.commit()
-                    return True
-        except pymysql.MySQLError as e:
-            print(f"SQL execution error: {e}")
-            self.db.rollback()
-            return False
+                    self.db.rollback()
+                    return False
+        raise Exception("Maximum retry limit reached, failed to execute the query")
 
     def quit(self) -> None:
         try:
