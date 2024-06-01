@@ -8,7 +8,7 @@ with open('requirements.txt') as f:
 
 setuptools.setup(
     name="busycat",
-    version="0.1.1",
+    version="0.1.2",
     author="busycat",
     author_email="",
     description="selfmade pkg",
